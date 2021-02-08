@@ -159,7 +159,7 @@ draft: false
 
 当多个并行运行的线程访问相同的数据，或者接近彼此的的数据时，他们将访问同一cache line上的数据。运行在任何内核上的任何线程都将获得同一cache line的副本。
 
-Figure 3
+#### Figure 3
 ![false_sharing](https://raw.githubusercontent.com/realSinged/img/master/cache_line_false_share.png)
 
 如果给定核心上的一个线程对其cache line的副本进行了更改，那么通过硬件的魔法，同一cache line的所有其他副本都必须被标记为dirty。当一个线程尝试对dirty cache line进行读或写访问时，需要对主存进行访问(~100到~300个时钟周期)才能获得cache line的新副本。

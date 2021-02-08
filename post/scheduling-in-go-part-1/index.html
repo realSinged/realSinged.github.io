@@ -271,8 +271,8 @@ func example(slice []string, str string, i int) {
 <p><img src="https://raw.githubusercontent.com/realSinged/img/master/cache_line_false_share.png" alt="cpu_cache"></p>
 <p>处理器和主存之间使用cache lines来交换数据。cache line是一个在主存和缓存系统之间交换的64字节的内存块。每个核心都有它自己需要的cache line的副本，这意味着硬件使用值语义。这就是为什么在多线程应用中内存的变化会造成性能噩梦。</p>
 <p>当多个并行运行的线程访问相同的数据，或者接近彼此的的数据时，他们将访问同一cache line上的数据。运行在任何内核上的任何线程都将获得同一cache line的副本。</p>
-<p>Figure 3
-<img src="https://raw.githubusercontent.com/realSinged/img/master/cache_line_false_share.png" alt="false_sharing"></p>
+<h4 id="figure-3">Figure 3</h4>
+<p><img src="https://raw.githubusercontent.com/realSinged/img/master/cache_line_false_share.png" alt="false_sharing"></p>
 <p>如果给定核心上的一个线程对其cache line的副本进行了更改，那么通过硬件的魔法，同一cache line的所有其他副本都必须被标记为dirty。当一个线程尝试对dirty cache line进行读或写访问时，需要对主存进行访问(~100到~300个时钟周期)才能获得cache line的新副本。</p>
 <p>也许在2核处理器上这不是什么大问题。但是在32核处理器上运行32个线程，在同一cache line上访问和改变数据呢？如果系统有两个16核的物理处理器呢？因为增加的处理器之间的通信延迟，这将变得更糟糕。应用程序将在内存中翻腾，性能将会非常糟糕，而你很可能根本不知道为什么。</p>
 <p>这就是所谓的缓存一致性问题，也会带来错误共享等问题。在编写会改变共享状态的多线程应用程序时，必须考虑缓存系统。</p>
