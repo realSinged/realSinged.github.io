@@ -67,7 +67,7 @@ Go协同式调度器的绝妙之处在于它看起来像是抢占式的。你无
 
 ## Goroutine状态
 
-就像线程一样，Goroutine也有3个相同的高级状态。这些状态规定了Go调度器在任何给定的Goroutine中所扮演的角色。Goroutine可以处于3种状态： **等待（Waiting）**、**可运行（Runnable）**或 **正在执行（Executing）**。
+就像线程一样，Goroutine也有3个相同的高级状态。这些状态规定了Go调度器在任何给定的Goroutine中所扮演的角色。Goroutine可以处于3种状态： **等待（Waiting）**、**可运行（Runnable）** 或 **正在执行（Executing）**。
 
 **Waiting**： 这意味着Goroutine停止并等待某些事情以便继续。原因可能是等待操作系统(系统调用)或同步调用(原子操作和互斥操作)。这些类型的延迟是糟糕性能的根本原因。
 
