@@ -6,7 +6,16 @@
     <description>Recent content in Posts on Singed</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Mon, 08 Feb 2021 10:43:09 +0800</lastBuildDate><atom:link href="https://realsinged.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Sun, 11 Apr 2021 18:03:48 +0800</lastBuildDate><atom:link href="https://realsinged.github.io/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>使用Spark Structured Streaming的Window和UDF进行数据处理</title>
+      <link>https://realsinged.github.io/post/spark-structured-streaming-window-udf-example/</link>
+      <pubDate>Sun, 11 Apr 2021 18:03:48 +0800</pubDate>
+      
+      <guid>https://realsinged.github.io/post/spark-structured-streaming-window-udf-example/</guid>
+      <description>最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过</description>
+    </item>
+    
     <item>
       <title>Go语言调度（二）：Go调度器</title>
       <link>https://realsinged.github.io/post/scheduling-in-go-part-2/</link>
