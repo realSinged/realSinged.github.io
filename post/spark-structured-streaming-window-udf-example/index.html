@@ -44,11 +44,11 @@
 <meta property="og:type" content="article" />
 <meta property="og:url" content="https://realsinged.github.io/post/spark-structured-streaming-window-udf-example/" />
 <meta property="article:published_time" content="2021-04-11T18:03:48+08:00" />
-<meta property="article:modified_time" content="2021-04-11T18:03:48+08:00" />
+<meta property="article:modified_time" content="2021-04-11T19:37:19+08:00" />
 <meta itemprop="name" content="使用Spark Structured Streaming的Window和UDF进行数据处理">
 <meta itemprop="description" content="最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过">
 <meta itemprop="datePublished" content="2021-04-11T18:03:48+08:00" />
-<meta itemprop="dateModified" content="2021-04-11T18:03:48+08:00" />
+<meta itemprop="dateModified" content="2021-04-11T19:37:19+08:00" />
 <meta itemprop="wordCount" content="1503">
 
 
@@ -172,7 +172,7 @@
       <p>最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group + Window + UDF的使用，抽了一个demo出来，作成此文。</p>
 <h2 id="什么是spark-structured-streaming">什么是Spark Structured Streaming</h2>
 <p>Structured是基于Spark SQL引擎构建的可伸缩、可容错的流处理引擎。你可以像对静态数据进行批处理计算一样，来进行流数据计算。当流数据持续到达时，Spark SQL引擎将负责递增地，连续地运行它并更新最终结果。您可以在Scala，Java，Python或R中使用Dataset/DataFrame API来表示流聚合，事件时间窗口，流的批处理等。计算是在同一优化的Spark SQL引擎上执行的。系统通过检查点和预写日志（WAL）来确保端到端的正好一次的容错保证。简而言之，Structured Streaming提供了快速，可扩展，容错，端到端的精确一次流处理，而用户无需关心流。</p>
-<p>以上内容摘抄自<a href="">Spark官网</a>,可自行跳转查看。</p>
+<p>以上内容摘抄自<a href="https://spark.apache.org/docs/3.1.1/index.html">Spark官网</a>,可自行跳转查看。</p>
 <h3 id="group-function">Group Function</h3>
 <p>基于用户指定的方式来聚合DataFrame，<a href="https://spark.apache.org/docs/3.1.1/sql-ref-syntax-qry-select-groupby.html#content">链接在这里</a>，本文主要使用了基于<a href="https://spark.apache.org/docs/3.1.1/structured-streaming-programming-guide.html#basic-operations---selection-projection-aggregation">窗口的聚合</a>。</p>
 <h3 id="window-function">Window Function</h3>
@@ -324,7 +324,7 @@ networks:
     <span class="item-title">LastMod</span>
     <span class="item-content">
         2021-04-11
-        
+        <a href="https://github.com/realSinged/realSinged.github.io.git/commit/caaa1b8c0951161d9d849d999d6f8bdaa5f94da2" title="spark structured streaming window udf example">(caaa1b8)</a>
     </span>
   </p>
   

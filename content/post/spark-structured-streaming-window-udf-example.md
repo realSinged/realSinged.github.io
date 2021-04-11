@@ -8,7 +8,7 @@ draft: false
 ## 什么是Spark Structured Streaming
 Structured是基于Spark SQL引擎构建的可伸缩、可容错的流处理引擎。你可以像对静态数据进行批处理计算一样，来进行流数据计算。当流数据持续到达时，Spark SQL引擎将负责递增地，连续地运行它并更新最终结果。您可以在Scala，Java，Python或R中使用Dataset/DataFrame API来表示流聚合，事件时间窗口，流的批处理等。计算是在同一优化的Spark SQL引擎上执行的。系统通过检查点和预写日志（WAL）来确保端到端的正好一次的容错保证。简而言之，Structured Streaming提供了快速，可扩展，容错，端到端的精确一次流处理，而用户无需关心流。
 
-以上内容摘抄自[Spark官网](),可自行跳转查看。
+以上内容摘抄自[Spark官网](https://spark.apache.org/docs/3.1.1/index.html),可自行跳转查看。
 
 ### Group Function
 基于用户指定的方式来聚合DataFrame，[链接在这里](https://spark.apache.org/docs/3.1.1/sql-ref-syntax-qry-select-groupby.html#content)，本文主要使用了基于[窗口的聚合](https://spark.apache.org/docs/3.1.1/structured-streaming-programming-guide.html#basic-operations---selection-projection-aggregation)。
