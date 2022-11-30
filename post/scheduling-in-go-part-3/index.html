@@ -23,7 +23,7 @@
 
 
 
-<meta name="generator" content="Hugo 0.80.0 with theme even" />
+<meta name="generator" content="Hugo 0.87.0 with theme even" />
 
 
 <link rel="canonical" href="https://realsinged.github.io/post/scheduling-in-go-part-3/" />
@@ -35,26 +35,22 @@
 
 
 
-<link href="/sass/main.min.2e81bbed97b8b282c1aeb57488cc71c8d8c8ec559f3931531bd396bf31e0d4dd.css" rel="stylesheet">
+<link href="/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css" rel="stylesheet">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css" integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin="anonymous">
 
 
 <meta property="og:title" content="Go语言调度（三）：并发" />
 <meta property="og:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。" />
 <meta property="og:type" content="article" />
-<meta property="og:url" content="https://realsinged.github.io/post/scheduling-in-go-part-3/" />
+<meta property="og:url" content="https://realsinged.github.io/post/scheduling-in-go-part-3/" /><meta property="article:section" content="post" />
 <meta property="article:published_time" content="2021-05-12T18:33:42+08:00" />
-<meta property="article:modified_time" content="2021-05-12T18:33:42+08:00" />
+<meta property="article:modified_time" content="2021-05-12T18:35:53+08:00" />
+
 <meta itemprop="name" content="Go语言调度（三）：并发">
-<meta itemprop="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。">
-<meta itemprop="datePublished" content="2021-05-12T18:33:42+08:00" />
-<meta itemprop="dateModified" content="2021-05-12T18:33:42+08:00" />
+<meta itemprop="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。"><meta itemprop="datePublished" content="2021-05-12T18:33:42+08:00" />
+<meta itemprop="dateModified" content="2021-05-12T18:35:53+08:00" />
 <meta itemprop="wordCount" content="5204">
-
-
-
-<meta itemprop="keywords" content="" />
-<meta name="twitter:card" content="summary"/>
+<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
 <meta name="twitter:title" content="Go语言调度（三）：并发"/>
 <meta name="twitter:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。"/>
 
@@ -210,7 +206,7 @@
 <p><a href="https://play.golang.org/p/r9LdqUsEzEz">https://play.golang.org/p/r9LdqUsEzEz</a></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt">1
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
 </span><span class="lnt">2
 </span><span class="lnt">3
 </span><span class="lnt">4
@@ -219,7 +215,7 @@
 </span><span class="lnt">7
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">36 func add(numbers []int) int {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">36 func add(numbers []int) int {
 37     var v int
 38     for _, n := range numbers {
 39         v += n
@@ -237,7 +233,7 @@
 <p><a href="https://play.golang.org/p/r9LdqUsEzEz">https://play.golang.org/p/r9LdqUsEzEz</a></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -270,7 +266,7 @@
 </span><span class="lnt">31
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">44 func addConcurrent(goroutines int, numbers []int) int {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">44 func addConcurrent(goroutines int, numbers []int) int {
 45     var v int64
 46     totalNumbers := len(numbers)
 47     lastGoroutine := goroutines - 1
@@ -307,7 +303,7 @@
 <h4 id="listing-3">Listing 3</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -320,7 +316,7 @@
 </span><span class="lnt">11
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">func BenchmarkSequential(b *testing.B) {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">func BenchmarkSequential(b *testing.B) {
     for i := 0; i &lt; b.N; i++ {
         add(numbers)
     }
@@ -337,7 +333,7 @@ func BenchmarkConcurrent(b *testing.B) {
 <h4 id="listing-4">Listing 4</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -351,7 +347,7 @@ func BenchmarkConcurrent(b *testing.B) {
 </span><span class="lnt">12
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">10 Million Numbers using 8 goroutines with 1 core
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">10 Million Numbers using 8 goroutines with 1 core
 2.9 GHz Intel 4 Core i7
 Concurrency WITHOUT Parallelism
 -----------------------------------------------------------------------------
@@ -371,7 +367,7 @@ BenchmarkConcurrentAgain 	    1000	   6482612 ns/op
 <h4 id="listing-5">Listing 5</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -385,7 +381,7 @@ BenchmarkConcurrentAgain 	    1000	   6482612 ns/op
 </span><span class="lnt">12
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">10 Million Numbers using 8 goroutines with 8 cores
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">10 Million Numbers using 8 goroutines with 8 cores
 2.9 GHz Intel 4 Core i7
 Concurrency WITH Parallelism
 -----------------------------------------------------------------------------
@@ -406,7 +402,7 @@ BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
 <p><a href="https://play.golang.org/p/S0Us1wYBqG6">https://play.golang.org/p/S0Us1wYBqG6</a></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -448,7 +444,7 @@ BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
 </span><span class="lnt">40
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-go" data-lang="go"><span class="mo">01</span> <span class="kn">package</span> <span class="nx">main</span>
+<pre tabindex="0" class="chroma"><code class="language-go" data-lang="go"><span class="mo">01</span> <span class="kn">package</span> <span class="nx">main</span>
 <span class="mo">02</span>
 <span class="mo">03</span> <span class="kn">import</span> <span class="s">&#34;fmt&#34;</span>
 <span class="mo">04</span>
@@ -494,7 +490,7 @@ BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
 <h4 id="listing-8">Listing 8</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -522,7 +518,7 @@ BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
 </span><span class="lnt">26
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">01 func bubbleSortConcurrent(goroutines int, numbers []int) {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">01 func bubbleSortConcurrent(goroutines int, numbers []int) {
 02     totalNumbers := len(numbers)
 03     lastGoroutine := goroutines - 1
 04     stride := totalNumbers / goroutines
@@ -553,7 +549,7 @@ BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
 </div><h4 id="listing-9">Listing 9</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt">1
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
 </span><span class="lnt">2
 </span><span class="lnt">3
 </span><span class="lnt">4
@@ -564,7 +560,7 @@ BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
 </span><span class="lnt">9
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">Before:
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">Before:
   25 51 15 57 87 10 10 85 90 32 98 53
   91 82 84 97 67 37 71 94 26  2 81 79
   66 70 93 86 19 81 52 75 85 10 87 49
@@ -583,7 +579,7 @@ After:
 <p><a href="https://play.golang.org/p/8gFe5F8zweN">https://play.golang.org/p/8gFe5F8zweN</a></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -600,7 +596,7 @@ After:
 </span><span class="lnt">15
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">42 func find(topic string, docs []string) int {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">42 func find(topic string, docs []string) int {
 43     var found int
 44     for _, doc := range docs {
 45         items, err := read(doc)
@@ -622,7 +618,7 @@ After:
 <p><a href="https://play.golang.org/p/8gFe5F8zweN">https://play.golang.org/p/8gFe5F8zweN</a></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt">1
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
 </span><span class="lnt">2
 </span><span class="lnt">3
 </span><span class="lnt">4
@@ -632,7 +628,7 @@ After:
 </span><span class="lnt">8
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">33 func read(doc string) ([]item, error) {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">33 func read(doc string) ([]item, error) {
 34     time.Sleep(time.Millisecond) // Simulate blocking disk read.
 35     var d document
 36     if err := xml.Unmarshal([]byte(file), &amp;d); err != nil {
@@ -648,7 +644,7 @@ After:
 <p><a href="https://play.golang.org/p/8gFe5F8zweN">https://play.golang.org/p/8gFe5F8zweN</a></p>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -685,7 +681,7 @@ After:
 </span><span class="lnt">35
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">58 func findConcurrent(goroutines int, topic string, docs []string) int {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">58 func findConcurrent(goroutines int, topic string, docs []string) int {
 59     var found int64
 60
 61     ch := make(chan string, len(docs))
@@ -726,7 +722,7 @@ After:
 <h4 id="listing-13">Listing 13</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -739,7 +735,7 @@ After:
 </span><span class="lnt">11
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">func BenchmarkSequential(b *testing.B) {
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">func BenchmarkSequential(b *testing.B) {
     for i := 0; i &lt; b.N; i++ {
         find(&#34;test&#34;, docs)
     }
@@ -756,7 +752,7 @@ func BenchmarkConcurrent(b *testing.B) {
 <h4 id="listing-14">Listing 14</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -770,7 +766,7 @@ func BenchmarkConcurrent(b *testing.B) {
 </span><span class="lnt">12
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">10 Thousand Documents using 8 goroutines with 1 core
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">10 Thousand Documents using 8 goroutines with 1 core
 2.9 GHz Intel 4 Core i7
 Concurrency WITHOUT Parallelism
 -----------------------------------------------------------------------------
@@ -789,7 +785,7 @@ BenchmarkConcurrentAgain 	      20	 184037843 ns/op : ~88% Faster
 <h4 id="listing-15">Listing 15</h4>
 <div class="highlight"><div class="chroma">
 <table class="lntable"><tr><td class="lntd">
-<pre class="chroma"><code><span class="lnt"> 1
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
 </span><span class="lnt"> 2
 </span><span class="lnt"> 3
 </span><span class="lnt"> 4
@@ -803,7 +799,7 @@ BenchmarkConcurrentAgain 	      20	 184037843 ns/op : ~88% Faster
 </span><span class="lnt">12
 </span></code></pre></td>
 <td class="lntd">
-<pre class="chroma"><code class="language-fallback" data-lang="fallback">10 Thousand Documents using 8 goroutines with 1 core
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">10 Thousand Documents using 8 goroutines with 1 core
 2.9 GHz Intel 4 Core i7
 Concurrency WITH Parallelism
 -----------------------------------------------------------------------------
@@ -833,7 +829,7 @@ BenchmarkConcurrentAgain-8   	      20	 185965460 ns/op : ~87% Faster
     <span class="item-title">LastMod</span>
     <span class="item-content">
         2021-05-12
-        
+        <a href="https://github.com/realSinged/realSinged.github.io.git/commit/8dc0fabd627a9c86f29c1a805d3f211d64644b0e" title="add: scheduling-in-go-part-3">(8dc0fab)</a>
     </span>
   </p>
   
@@ -842,7 +838,11 @@ BenchmarkConcurrentAgain-8   	      20	 185965460 ns/op : ~87% Faster
 <footer class="post-footer">
       
       <nav class="post-nav">
-        
+        <a class="prev" href="/post/cheatsheet/">
+            <i class="iconfont icon-left"></i>
+            <span class="prev-text nav-default">小抄</span>
+            <span class="prev-text nav-mobile">Prev</span>
+          </a>
         <a class="next" href="/post/spark-structured-streaming-window-udf-example/">
             <span class="next-text nav-default">使用Spark Structured Streaming的Window和UDF进行数据处理</span>
             <span class="next-text nav-mobile">Next</span>
@@ -883,7 +883,7 @@ BenchmarkConcurrentAgain-8   	      20	 185965460 ns/op : ~87% Faster
   <span class="copyright-year">
     &copy; 
     2020 - 
-    2021<span class="heart"><i class="iconfont icon-heart"></i></span><span>singed</span>
+    2022<span class="heart"><i class="iconfont icon-heart"></i></span><span>singed</span>
   </span>
 </div>
 
@@ -900,7 +900,7 @@ BenchmarkConcurrentAgain-8   	      20	 185965460 ns/op : ~87% Faster
 
 
 
-<script type="text/javascript" src="/js/main.min.c12618f9a600c40bd024996677e951e64d3487006775aeb22e200c990006c5c7.js"></script>
+<script type="text/javascript" src="/js/main.min.c99b103c33d1539acf3025e1913697534542c4a5aa5af0ccc20475ed2863603b.js"></script>
 
 
 

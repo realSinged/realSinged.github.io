@@ -6,7 +6,16 @@
     <description>Recent content on Singed</description>
     <generator>Hugo -- gohugo.io</generator>
     <language>en</language>
-    <lastBuildDate>Wed, 12 May 2021 18:33:42 +0800</lastBuildDate><atom:link href="https://realsinged.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <lastBuildDate>Wed, 30 Nov 2022 14:53:05 +0800</lastBuildDate><atom:link href="https://realsinged.github.io/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>小抄</title>
+      <link>https://realsinged.github.io/post/cheatsheet/</link>
+      <pubDate>Wed, 30 Nov 2022 14:53:05 +0800</pubDate>
+      
+      <guid>https://realsinged.github.io/post/cheatsheet/</guid>
+      <description>序 小抄是所有有用的知识、规范的集散地 规范 语义化版本2.0.0</description>
+    </item>
+    
     <item>
       <title>Go语言调度（三）：并发</title>
       <link>https://realsinged.github.io/post/scheduling-in-go-part-3/</link>
