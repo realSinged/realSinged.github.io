@@ -12,7 +12,7 @@
 
     linux:
 
-    snao install hugo
+    snap install hugo
 ```
 
 当前使用的版本是： hugo v0.87.0
