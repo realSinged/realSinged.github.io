@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Singed</title>
+    <link>http://localhost:1313/post/</link>
+    <description>Recent content in Posts on Singed</description>
+    <generator>Hugo</generator>
+    <language>en</language>
+    <lastBuildDate>Wed, 07 Dec 2022 20:38:57 +0800</lastBuildDate>
+    <atom:link href="http://localhost:1313/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>小抄</title>
+      <link>http://localhost:1313/post/cheatsheet/</link>
+      <pubDate>Wed, 30 Nov 2022 14:53:05 +0800</pubDate>
+      <guid>http://localhost:1313/post/cheatsheet/</guid>
+      <description>&lt;h1 id=&#34;序&#34;&gt;序&lt;/h1&gt;&#xA;&lt;p&gt;小抄是所有有用的知识、规范的集散地&lt;/p&gt;&#xA;&lt;h2 id=&#34;规范&#34;&gt;规范&lt;/h2&gt;&#xA;&lt;p&gt;&lt;a href=&#34;https://semver.org/lang/zh-CN/&#34;&gt;语义化版本2.0.0&lt;/a&gt;&lt;/p&gt;&#xA;&lt;p&gt;&lt;a href=&#34;https://cbea.ms/git-commit/&#34;&gt;How to Write a Good Git Commit Message&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;正则&#34;&gt;正则&lt;/h2&gt;&#xA;&lt;p&gt;正则表达式测试网站 &lt;a href=&#34;https://regex101.com/r/Ly7O1x/3&#34;&gt;regular expression 101&lt;/a&gt;&lt;/p&gt;&#xA;&lt;h2 id=&#34;linux&#34;&gt;Linux&lt;/h2&gt;&#xA;&lt;p&gt;&lt;a href=&#34;https://support.binarylane.com.au/support/solutions/articles/1000055889-how-to-benchmark-disk-i-o&#34;&gt;How to benchmark disk I/O&lt;/a&gt;&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Go语言调度（三）：并发</title>
+      <link>http://localhost:1313/post/scheduling-in-go-part-3/</link>
+      <pubDate>Wed, 12 May 2021 18:33:42 +0800</pubDate>
+      <guid>http://localhost:1313/post/scheduling-in-go-part-3/</guid>
+      <description>&lt;h2 id=&#34;序言&#34;&gt;序言&lt;/h2&gt;&#xA;&lt;p&gt;这是一个由三部分组成的系列文章，翻译而来，&lt;a href=&#34;https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html&#34;&gt;原文出处请戳&lt;/a&gt;。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。&lt;/p&gt;&#xA;&lt;h2 id=&#34;简介&#34;&gt;简介&lt;/h2&gt;&#xA;&lt;p&gt;当我在解决一个问题，特别是新问题的时候，我并不会一开始就考虑到并发是否是一个好的选择。我最开始会用串行的方式并保证能够正常工作。然后经过可读性和技术评审，我会开始思考如果用并发的方式是否合理且可实践的。有些时候并发毫无疑问是一个好的选择，有的时候却又不太确定。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>使用Spark Structured Streaming的Window和UDF进行数据处理</title>
+      <link>http://localhost:1313/post/spark-structured-streaming-window-udf-example/</link>
+      <pubDate>Sun, 11 Apr 2021 18:03:48 +0800</pubDate>
+      <guid>http://localhost:1313/post/spark-structured-streaming-window-udf-example/</guid>
+      <description>&lt;p&gt;最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group + Window + UDF的使用，抽了一个demo出来，作成此文。&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Go语言调度（二）：Go调度器</title>
+      <link>http://localhost:1313/post/scheduling-in-go-part-2/</link>
+      <pubDate>Mon, 08 Feb 2021 10:43:09 +0800</pubDate>
+      <guid>http://localhost:1313/post/scheduling-in-go-part-2/</guid>
+      <description>&lt;h2 id=&#34;序言&#34;&gt;序言&lt;/h2&gt;&#xA;&lt;p&gt;这是一个由三部分组成的系列文章，翻译而来，&lt;a href=&#34;https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html&#34;&gt;原文出处请戳&lt;/a&gt;。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调度器。&lt;/p&gt;&#xA;&lt;p&gt;索引：&lt;/p&gt;&#xA;&lt;p&gt;1）Go语言调度（一）：系统调度器&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Go语言调度（一）：系统调度器</title>
+      <link>http://localhost:1313/post/scheduling-in-go-part-1/</link>
+      <pubDate>Mon, 01 Feb 2021 16:01:24 +0800</pubDate>
+      <guid>http://localhost:1313/post/scheduling-in-go-part-1/</guid>
+      <description>&lt;h2 id=&#34;序言&#34;&gt;序言&lt;/h2&gt;&#xA;&lt;p&gt;这是一个由三部分组成的系列文章，翻译而来，&lt;a href=&#34;https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html&#34;&gt;原文出处请戳&lt;/a&gt;。 将提供对Go语言调度器背后的机制和语义的理解。这是第一篇，这篇文章将着重于操作系统调度器。&lt;/p&gt;&#xA;&lt;p&gt;索引：&lt;/p&gt;&#xA;&lt;p&gt;1）Go语言调度（一）：系统调度器&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>你好！2021！</title>
+      <link>http://localhost:1313/post/my-first-post/</link>
+      <pubDate>Fri, 01 Jan 2021 16:01:24 +0800</pubDate>
+      <guid>http://localhost:1313/post/my-first-post/</guid>
+      <description>&lt;p&gt;你好！2021！&#xA;愿所有人2021健康，平安！&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>

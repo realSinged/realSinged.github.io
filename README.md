@@ -71,7 +71,7 @@ hugo server
 文章创作完成，检查无误后，终端执行
 
 ```
-hugo -destination .
+hugo --destination .
 ```
 即可生成静态内容。
 

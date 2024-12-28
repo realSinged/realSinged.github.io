@@ -4,7 +4,8 @@
     <title>Tags on Singed</title>
     <link>https://realsinged.github.io/tags/</link>
     <description>Recent content in Tags on Singed</description>
-    <generator>Hugo -- gohugo.io</generator>
-    <language>en</language><atom:link href="https://realsinged.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
+    <generator>Hugo</generator>
+    <language>en</language>
+    <atom:link href="https://realsinged.github.io/tags/index.xml" rel="self" type="application/rss+xml" />
   </channel>
 </rss>

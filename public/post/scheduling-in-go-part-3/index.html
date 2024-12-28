@@ -1,0 +1,922 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>Go语言调度（三）：并发 - Singed</title>
+  <meta name="renderer" content="webkit" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+<meta name="theme-color" content="#f8f5ec" />
+<meta name="msapplication-navbutton-color" content="#f8f5ec">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="#f8f5ec">
+
+
+<meta name="author" content="" /><meta name="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。
+简介 当我在解决一个问题，特别是新问题的时候，我并不会一开始就考虑到并发是否是一个好的选择。我最开始会用串行的方式并保证能够正常工作。然后经过可读性和技术评审，我会开始思考如果用并发的方式是否合理且可实践的。有些时候并发毫无疑问是一个好的选择，有的时候却又不太确定。
+" /><meta name="keywords" content="singed, golang, backend" />
+
+
+
+
+
+
+<meta name="generator" content="Hugo 0.140.1 with theme even" />
+
+
+<link rel="canonical" href="http://localhost:1313/post/scheduling-in-go-part-3/" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+
+
+
+<link href="/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css" integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin="anonymous">
+
+
+<meta property="og:url" content="http://localhost:1313/post/scheduling-in-go-part-3/">
+  <meta property="og:site_name" content="Singed">
+  <meta property="og:title" content="Go语言调度（三）：并发">
+  <meta property="og:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。
+简介 当我在解决一个问题，特别是新问题的时候，我并不会一开始就考虑到并发是否是一个好的选择。我最开始会用串行的方式并保证能够正常工作。然后经过可读性和技术评审，我会开始思考如果用并发的方式是否合理且可实践的。有些时候并发毫无疑问是一个好的选择，有的时候却又不太确定。">
+  <meta property="og:locale" content="en">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="post">
+    <meta property="article:published_time" content="2021-05-12T18:33:42+08:00">
+    <meta property="article:modified_time" content="2021-05-12T18:35:53+08:00">
+
+  <meta itemprop="name" content="Go语言调度（三）：并发">
+  <meta itemprop="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。
+简介 当我在解决一个问题，特别是新问题的时候，我并不会一开始就考虑到并发是否是一个好的选择。我最开始会用串行的方式并保证能够正常工作。然后经过可读性和技术评审，我会开始思考如果用并发的方式是否合理且可实践的。有些时候并发毫无疑问是一个好的选择，有的时候却又不太确定。">
+  <meta itemprop="datePublished" content="2021-05-12T18:33:42+08:00">
+  <meta itemprop="dateModified" content="2021-05-12T18:35:53+08:00">
+  <meta itemprop="wordCount" content="5204">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Go语言调度（三）：并发">
+  <meta name="twitter:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。
+简介 当我在解决一个问题，特别是新问题的时候，我并不会一开始就考虑到并发是否是一个好的选择。我最开始会用串行的方式并保证能够正常工作。然后经过可读性和技术评审，我会开始思考如果用并发的方式是否合理且可实践的。有些时候并发毫无疑问是一个好的选择，有的时候却又不太确定。">
+
+<!--[if lte IE 9]>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js"></script>
+<![endif]-->
+
+<!--[if lt IE 9]>
+  <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+<![endif]-->
+
+</head>
+<body>
+  <div id="mobile-navbar" class="mobile-navbar">
+  <div class="mobile-header-logo">
+    <a href="/" class="logo">singed</a>
+  </div>
+  <div class="mobile-navbar-icon">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</div>
+<nav id="mobile-menu" class="mobile-menu slideout-menu">
+  <ul class="mobile-menu-list">
+    <a href="/">
+        <li class="mobile-menu-item">Home</li>
+      </a><a href="/post/">
+        <li class="mobile-menu-item">Archives</li>
+      </a><a href="/tags/">
+        <li class="mobile-menu-item">Tags</li>
+      </a><a href="/categories/">
+        <li class="mobile-menu-item">Categories</li>
+      </a>
+  </ul>
+
+  
+
+
+</nav>
+
+  <div class="container" id="mobile-panel">
+    <header id="header" class="header">
+        <div class="logo-wrapper">
+  <a href="/" class="logo">singed</a>
+</div>
+
+
+
+
+
+<nav class="site-navbar">
+  <ul id="menu" class="menu">
+    <li class="menu-item">
+        <a class="menu-item-link" href="/">Home</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/post/">Archives</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/tags/">Tags</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/categories/">Categories</a>
+      </li>
+  </ul>
+</nav>
+
+    </header>
+
+    <main id="main" class="main">
+      <div class="content-wrapper">
+        <div id="content" class="content">
+          <article class="post">
+    
+    <header class="post-header">
+      <h1 class="post-title">Go语言调度（三）：并发</h1>
+
+      <div class="post-meta">
+        <span class="post-time"> 2021-05-12 </span>
+        
+          <span class="more-meta"> 5204 words </span>
+          <span class="more-meta"> 11 mins read </span>
+        
+      </div>
+    </header>
+
+    <div class="post-toc" id="post-toc">
+  <h2 class="post-toc-title">Contents</h2>
+  <div class="post-toc-content always-active">
+    <nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#序言">序言</a></li>
+        <li><a href="#简介">简介</a></li>
+        <li><a href="#什么是并发">什么是并发</a>
+          <ul>
+            <li></li>
+          </ul>
+        </li>
+        <li><a href="#工作负载">工作负载</a></li>
+        <li><a href="#加数">加数</a>
+          <ul>
+            <li></li>
+          </ul>
+        </li>
+        <li><a href="#排序">排序</a>
+          <ul>
+            <li></li>
+          </ul>
+        </li>
+        <li><a href="#读取文件">读取文件</a>
+          <ul>
+            <li></li>
+          </ul>
+        </li>
+        <li><a href="#总结">总结</a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+  </div>
+</div>
+    <div class="post-content">
+      <h2 id="序言">序言</h2>
+<p>这是一个由三部分组成的系列文章，翻译而来，<a href="https://www.ardanlabs.com/blog/2018/08/scheduling-in-go-part1.html">原文出处请戳</a>。 将提供对Go语言调度器背后的机制和语义的理解。这是第三篇，这篇文章将着重于并发。</p>
+<h2 id="简介">简介</h2>
+<p>当我在解决一个问题，特别是新问题的时候，我并不会一开始就考虑到并发是否是一个好的选择。我最开始会用串行的方式并保证能够正常工作。然后经过可读性和技术评审，我会开始思考如果用并发的方式是否合理且可实践的。有些时候并发毫无疑问是一个好的选择，有的时候却又不太确定。</p>
+<p>在第一篇文章中，我解释了OS调度器的机制和语义，如果你打算写多线程程序，我相信这是很重要的。在第二部分，我解释了GO的语义，我相信这对于理解如何写GO的并发程序是很重要的。在这篇文章中，我将把GO和OS调度器的机制和语义结合在一起，来提供什么是并发什么不是的更深的理解。</p>
+<p>本篇文章目的：</p>
+<ul>
+<li>提供关于确定工作负载是否适合使用并发性时必须考虑的语义的指导。</li>
+<li>向您展示不同类型的工作负载如何改变语义，从而改变您想要做出的工程决策。</li>
+</ul>
+<h2 id="什么是并发">什么是并发</h2>
+<p>并发意味着“无序”执行。接受一组指令，本来是顺序执行的，然后找到一种方法，使其无序执行并产生和顺序执行相同的结果。对于你面前的问题，无序执行显然能创造价值。我说的价值，是指增加提升性能但同时会增加复杂度。根据你的问题，无序执行也或许是不可能的或者没有价值。</p>
+<p>理解并发不等于并行也是重要的。并行意味着同时执行2个或更多的指令。这是一个和并发不同的概念。当你有至少两个操作系统和硬件线程和至少两个Goroutines，每个goroutine在独立的操作系统或硬件上执行指令，这才可能是并行的。</p>
+<h4 id="figure-1">Figure 1</h4>
+<p><img src="https://upload-images.jianshu.io/upload_images/13462240-d9d37aff7fdd4a44.png?imageMogr2/auto-orient/strip%7CimageView2/2/w/1240" alt="96_figure1.png"></p>
+<p>在图1中，两个逻辑处理器（P）和他们独立的操作系统线程（M）绑定在机器中独立的硬件线程上（Core）。你能看到两个Goroutines（G1和G2）在并行执行， 同时在不同的硬件操作系统上执行指令。在每个逻辑处理器中，3个Goroutines在轮流的使用各自的操作系统线程。所有的Goroutines都在并发的执行，无序的执行指令和共享操作系统线程。</p>
+<h2 id="工作负载">工作负载</h2>
+<p>你如何知道什么时候无序执行是可行并且有效的？理解你的问题需要处理哪种工作负载是一个好的出发点。当考虑并发时，理解以下两种工作负载是很重要的。</p>
+<ul>
+<li>CPU密集型（CPU-Bound）：这种工作负载无法创造使Goroutines移入或移出等待状态（waiting states）的场景，因为工作负载一直在做计算。计算Pi小数点后的第N位就是这样一种场景</li>
+<li>IO密集型（IO-Bound）：这种工作负载将会使Goroutines自然地进入等待状态（waiting states）。这些工作包括请求通过网络访问资源，或对操作系统进行系统调用，或等待事件发生。Goroutines需要读取文件也是IO密集型的，我也会把导致Goroutines等待的同步事件（mutexes，atomic）也归类为这种类型。</li>
+</ul>
+<p>对于CPU密集型的工作负载，你需要并行来提升并发。因为这种类型的工作负载，goroutine不会自然的从等待状态中移入或移出，所以单个操作系统/硬件线程处理多个Goroutines是低效的。拥有比操作系统/硬件线程更多的Goroutines会降低工作负载的执行速度，因为在操作系统线程中移动Goroutines延迟成本(时间)比较高。下文切换为你的工作负载创建一个“Stop The World”事件，因为在切换期间没有任何工作负载被执行(原本上可能会执行)。</p>
+<p>对于IO密集型的工作负载，你不用提高并行来增加并发。因为Goroutines天然的移入/移出等待状态，所以一个单独的操作系统/硬件线程就能高效地处理多个Goroutines。比操作系统/硬件线程更多的Goroutines能够加速任务执行，因为从系统线程上移动Goroutines的延迟花费并不会创建一个“Stop The World”事件。你的工作负载自然的停止了，然后允许其他的Goroutines高效地利用同一个操作系统/硬件线程，而不是让他空闲。</p>
+<p>如何知道每个硬件线程多少个Goroutines能提供最好的吞吐量呢？太少的Goroutines将会导致更多的闲置时间，太多的Goroutines将会有更多的上下文切换延迟时间。这些都是你需要考虑的问题，但是不在本篇的讨论范围中。</p>
+<p>现在重要的是看一些代码来巩固你鉴别工作负载是否能提升并发，如果不能的话是否有必要提高并行的能力</p>
+<h2 id="加数">加数</h2>
+<p>我们不必用复杂的代码来具象和理解这些语义。请看下面这个累加一系列整数的方法：add。</p>
+<h4 id="listing-1">Listing 1</h4>
+<p><a href="https://play.golang.org/p/r9LdqUsEzEz">https://play.golang.org/p/r9LdqUsEzEz</a></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">36</span> <span class="k">func</span> <span class="n">add</span><span class="p">(</span><span class="n">numbers</span> <span class="p">[]</span><span class="ne">int</span><span class="p">)</span> <span class="ne">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">37</span>     <span class="k">var</span> <span class="n">v</span> <span class="ne">int</span>
+</span></span><span class="line"><span class="cl"><span class="mi">38</span>     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">n</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">numbers</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">39</span>         <span class="n">v</span> <span class="o">+=</span> <span class="n">n</span>
+</span></span><span class="line"><span class="cl"><span class="mi">40</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">41</span>     <span class="k">return</span> <span class="n">v</span>
+</span></span><span class="line"><span class="cl"><span class="mi">42</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>在这段代码中，定义的add方法接受一个整数数组，返回数组的和。</p>
+<p>问题：方法add是适合于无序执行的工作负载吗？我相信答案是肯定的。整数集合可以被分为更小的可以并发执行的列表。一旦被拆分的列表分别被求和,累加值列表就可以全部再被加起来，得到和顺序执行一样的结果。</p>
+<p>然而这将产生另外一个问题，应该分成多少更小的独立列表以获得最佳的吞吐量呢？为了回答这个问题，你应该知道add是什么类型的工作负载。方法add是一个cpu密集型的工作负载，因为算法不做任何其他会导致goroutine进入等待状态的事情，而只做数学计算。这意味着只需要为每个操作系统/硬件线程分配一个goroutine就能够获得最佳的吞吐量。</p>
+<p>列表2是并发版本的方法add。</p>
+<p>注：有很多种方法来写add的并发版本。不用纠结于我实现的这一版，如果你有更可读的并且性能一样或更好的版本，我很愿意你能够分享他。</p>
+<h4 id="listing-2">Listing 2</h4>
+<p><a href="https://play.golang.org/p/r9LdqUsEzEz">https://play.golang.org/p/r9LdqUsEzEz</a></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">44</span> <span class="k">func</span> <span class="n">addConcurrent</span><span class="p">(</span><span class="n">goroutines</span> <span class="ne">int</span><span class="p">,</span> <span class="n">numbers</span> <span class="p">[]</span><span class="ne">int</span><span class="p">)</span> <span class="ne">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">45</span>     <span class="k">var</span> <span class="n">v</span> <span class="n">int64</span>
+</span></span><span class="line"><span class="cl"><span class="mi">46</span>     <span class="n">totalNumbers</span> <span class="p">:</span><span class="o">=</span> <span class="n">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">47</span>     <span class="n">lastGoroutine</span> <span class="p">:</span><span class="o">=</span> <span class="n">goroutines</span> <span class="o">-</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl"><span class="mi">48</span>     <span class="n">stride</span> <span class="p">:</span><span class="o">=</span> <span class="n">totalNumbers</span> <span class="o">/</span> <span class="n">goroutines</span>
+</span></span><span class="line"><span class="cl"><span class="mi">49</span>
+</span></span><span class="line"><span class="cl"><span class="mi">50</span>     <span class="k">var</span> <span class="n">wg</span> <span class="n">sync</span><span class="o">.</span><span class="n">WaitGroup</span>
+</span></span><span class="line"><span class="cl"><span class="mi">51</span>     <span class="n">wg</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">goroutines</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">52</span>
+</span></span><span class="line"><span class="cl"><span class="mi">53</span>     <span class="k">for</span> <span class="n">g</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">g</span> <span class="o">&lt;</span> <span class="n">goroutines</span><span class="p">;</span> <span class="n">g</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">54</span>         <span class="n">go</span> <span class="k">func</span><span class="p">(</span><span class="n">g</span> <span class="ne">int</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">55</span>             <span class="n">start</span> <span class="p">:</span><span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="n">stride</span>
+</span></span><span class="line"><span class="cl"><span class="mi">56</span>             <span class="n">end</span> <span class="p">:</span><span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">stride</span>
+</span></span><span class="line"><span class="cl"><span class="mi">57</span>             <span class="k">if</span> <span class="n">g</span> <span class="o">==</span> <span class="n">lastGoroutine</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">58</span>                 <span class="n">end</span> <span class="o">=</span> <span class="n">totalNumbers</span>
+</span></span><span class="line"><span class="cl"><span class="mi">59</span>             <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">60</span>
+</span></span><span class="line"><span class="cl"><span class="mi">61</span>             <span class="k">var</span> <span class="n">lv</span> <span class="ne">int</span>
+</span></span><span class="line"><span class="cl"><span class="mi">62</span>             <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">n</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">numbers</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">]</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">63</span>                 <span class="n">lv</span> <span class="o">+=</span> <span class="n">n</span>
+</span></span><span class="line"><span class="cl"><span class="mi">64</span>             <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">65</span>
+</span></span><span class="line"><span class="cl"><span class="mi">66</span>             <span class="n">atomic</span><span class="o">.</span><span class="n">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="n">v</span><span class="p">,</span> <span class="n">int64</span><span class="p">(</span><span class="n">lv</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="mi">67</span>             <span class="n">wg</span><span class="o">.</span><span class="n">Done</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">68</span>         <span class="p">}(</span><span class="n">g</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">69</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">70</span>
+</span></span><span class="line"><span class="cl"><span class="mi">71</span>     <span class="n">wg</span><span class="o">.</span><span class="n">Wait</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">72</span>
+</span></span><span class="line"><span class="cl"><span class="mi">73</span>     <span class="k">return</span> <span class="ne">int</span><span class="p">(</span><span class="n">v</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">74</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>并发版本明显比串行版本更复杂，增加的复杂度是值得的吗？回答这个问题最好的方法是做基准测试。</p>
+<h4 id="listing-3">Listing 3</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="k">func</span> <span class="n">BenchmarkSequential</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span><span class="n">testing</span><span class="o">.</span><span class="n">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">b</span><span class="o">.</span><span class="n">N</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">add</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">func</span> <span class="n">BenchmarkConcurrent</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span><span class="n">testing</span><span class="o">.</span><span class="n">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">b</span><span class="o">.</span><span class="n">N</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">addConcurrent</span><span class="p">(</span><span class="n">runtime</span><span class="o">.</span><span class="n">NumCPU</span><span class="p">(),</span> <span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>列表3中是基准测试方法。下面是只有一个操作系统/硬件线程对所有Goroutines可用时的结果。串行的版本只使用了一个Goroutines，而并发的版本使用了runtime.NumCPU个，在我的机器上也就是8个Goroutines.这种情况下，并发的版本并没有利用并行来提高并发。</p>
+<h4 id="listing-4">Listing 4</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">10 Million Numbers using 8 goroutines with 1 core
+</span></span><span class="line"><span class="cl">2.9 GHz Intel 4 Core i7
+</span></span><span class="line"><span class="cl">Concurrency WITHOUT Parallelism
+</span></span><span class="line"><span class="cl">-----------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">$ GOGC=off go test -cpu 1 -run none -bench . -benchtime 3s
+</span></span><span class="line"><span class="cl">goos: darwin
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: github.com/ardanlabs/gotraining/topics/go/testing/benchmarks/cpu-bound
+</span></span><span class="line"><span class="cl">BenchmarkSequential      	    1000	   5720764 ns/op : ~10% Faster
+</span></span><span class="line"><span class="cl">BenchmarkConcurrent      	    1000	   6387344 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkSequentialAgain 	    1000	   5614666 ns/op : ~13% Faster
+</span></span><span class="line"><span class="cl">BenchmarkConcurrentAgain 	    1000	   6482612 ns/op
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>注：在你的本地环境跑基准测试是很复杂的。有很多的因素会导致你的benchmark不准确。请确保你的机器尽可能空闲并且多跑几次测试。你要确保你看到的结果是一致的，通过测试工具运行两次基准测试可以获得最一致的结果。</p>
+<p>列表4中的基准测试表明在只有一个操作系统/硬件线程情况下，串行版本会比并行版本快大概10%～13%。这正是我所期望的，因为并发版本在单个OS线程上有上下文切换的开销和对Goroutines的管理。</p>
+<p>下面的结果是每个Goroutines都能有一个独立的操作系统/硬件线程。串行的版本只有一个Goroutines，并行的版本则使用runtime.NumCPU个Goroutines，在我的机器上，这个数量是8.在这种情况下，并发的版本可以利用并行来提高并发。</p>
+<h4 id="listing-5">Listing 5</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">10 Million Numbers using 8 goroutines with 8 cores
+</span></span><span class="line"><span class="cl">2.9 GHz Intel 4 Core i7
+</span></span><span class="line"><span class="cl">Concurrency WITH Parallelism
+</span></span><span class="line"><span class="cl">-----------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">$ GOGC=off go test -cpu 8 -run none -bench . -benchtime 3s
+</span></span><span class="line"><span class="cl">goos: darwin
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: github.com/ardanlabs/gotraining/topics/go/testing/benchmarks/cpu-bound
+</span></span><span class="line"><span class="cl">BenchmarkSequential-8        	    1000	   5910799 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkConcurrent-8        	    2000	   3362643 ns/op : ~43% Faster
+</span></span><span class="line"><span class="cl">BenchmarkSequentialAgain-8   	    1000	   5933444 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkConcurrentAgain-8   	    2000	   3477253 ns/op : ~41% Faster
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>列表5中的基准测试结果表明， 在使用多个操作系统/硬件线程的情况下，并发版本比串行版本快了41%～43%。这也正是我所期望的，因为Goroutines现在在并行执行。8个Goroutines在同时地执行指令。</p>
+<h2 id="排序">排序</h2>
+<p>理解并不是所有CPU密集型的工作负载都适合并发是很重要的。特别是当分开进行工作或/和合并所有结果都很昂贵的场景。一个例子就是冒泡排序算法。请看下面冒泡排序算法的实现。</p>
+<h4 id="listing-6">Listing 6</h4>
+<p><a href="https://play.golang.org/p/S0Us1wYBqG6">https://play.golang.org/p/S0Us1wYBqG6</a></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span><span class="lnt">36
+</span><span class="lnt">37
+</span><span class="lnt">38
+</span><span class="lnt">39
+</span><span class="lnt">40
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">01</span> <span class="n">package</span> <span class="n">main</span>
+</span></span><span class="line"><span class="cl"><span class="mi">02</span>
+</span></span><span class="line"><span class="cl"><span class="mi">03</span> <span class="n">import</span> <span class="s2">&#34;fmt&#34;</span>
+</span></span><span class="line"><span class="cl"><span class="mi">04</span>
+</span></span><span class="line"><span class="cl"><span class="mi">05</span> <span class="k">func</span> <span class="n">bubbleSort</span><span class="p">(</span><span class="n">numbers</span> <span class="p">[]</span><span class="ne">int</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">06</span>     <span class="n">n</span> <span class="p">:</span><span class="o">=</span> <span class="n">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">07</span>     <span class="k">for</span> <span class="n">i</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">n</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">08</span>         <span class="k">if</span> <span class="o">!</span><span class="n">sweep</span><span class="p">(</span><span class="n">numbers</span><span class="p">,</span> <span class="n">i</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">09</span>             <span class="k">return</span>
+</span></span><span class="line"><span class="cl"><span class="mi">10</span>         <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">11</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">12</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">13</span>
+</span></span><span class="line"><span class="cl"><span class="mi">14</span> <span class="k">func</span> <span class="n">sweep</span><span class="p">(</span><span class="n">numbers</span> <span class="p">[]</span><span class="ne">int</span><span class="p">,</span> <span class="n">currentPass</span> <span class="ne">int</span><span class="p">)</span> <span class="ne">bool</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">15</span>     <span class="k">var</span> <span class="n">idx</span> <span class="ne">int</span>
+</span></span><span class="line"><span class="cl"><span class="mi">16</span>     <span class="n">idxNext</span> <span class="p">:</span><span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl"><span class="mi">17</span>     <span class="n">n</span> <span class="p">:</span><span class="o">=</span> <span class="n">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">18</span>     <span class="k">var</span> <span class="n">swap</span> <span class="ne">bool</span>
+</span></span><span class="line"><span class="cl"><span class="mi">19</span>
+</span></span><span class="line"><span class="cl"><span class="mi">20</span>     <span class="k">for</span> <span class="n">idxNext</span> <span class="o">&lt;</span> <span class="p">(</span><span class="n">n</span> <span class="o">-</span> <span class="n">currentPass</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">21</span>         <span class="n">a</span> <span class="p">:</span><span class="o">=</span> <span class="n">numbers</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl"><span class="mi">22</span>         <span class="n">b</span> <span class="p">:</span><span class="o">=</span> <span class="n">numbers</span><span class="p">[</span><span class="n">idxNext</span><span class="p">]</span>
+</span></span><span class="line"><span class="cl"><span class="mi">23</span>         <span class="k">if</span> <span class="n">a</span> <span class="o">&gt;</span> <span class="n">b</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">24</span>             <span class="n">numbers</span><span class="p">[</span><span class="n">idx</span><span class="p">]</span> <span class="o">=</span> <span class="n">b</span>
+</span></span><span class="line"><span class="cl"><span class="mi">25</span>             <span class="n">numbers</span><span class="p">[</span><span class="n">idxNext</span><span class="p">]</span> <span class="o">=</span> <span class="n">a</span>
+</span></span><span class="line"><span class="cl"><span class="mi">26</span>             <span class="n">swap</span> <span class="o">=</span> <span class="bp">true</span>
+</span></span><span class="line"><span class="cl"><span class="mi">27</span>         <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">28</span>         <span class="n">idx</span><span class="o">++</span>
+</span></span><span class="line"><span class="cl"><span class="mi">29</span>         <span class="n">idxNext</span> <span class="o">=</span> <span class="n">idx</span> <span class="o">+</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl"><span class="mi">30</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">31</span>     <span class="k">return</span> <span class="n">swap</span>
+</span></span><span class="line"><span class="cl"><span class="mi">32</span> <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">33</span>
+</span></span><span class="line"><span class="cl"><span class="mi">34</span> <span class="k">func</span> <span class="n">main</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">35</span>     <span class="n">org</span> <span class="p">:</span><span class="o">=</span> <span class="p">[]</span><span class="ne">int</span><span class="p">{</span><span class="mi">1</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">4</span><span class="p">,</span> <span class="mi">8</span><span class="p">,</span> <span class="mi">6</span><span class="p">,</span> <span class="mi">7</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">,</span> <span class="mi">0</span><span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">36</span>     <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">org</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">37</span>
+</span></span><span class="line"><span class="cl"><span class="mi">38</span>     <span class="n">bubbleSort</span><span class="p">(</span><span class="n">org</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">39</span>     <span class="n">fmt</span><span class="o">.</span><span class="n">Println</span><span class="p">(</span><span class="n">org</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">40</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>问题： 方法bubbleSort是适合无序执行的工作负载吗？我相信答案是No。整数集合可以被分成更小的整数集合，然后并发的分开排序。然后当所有并发工作完成后，没有方法能够高效地把排序结果再排序在一起。下面是一个并发冒泡排序的例子。</p>
+<h4 id="listing-8">Listing 8</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">01</span> <span class="k">func</span> <span class="n">bubbleSortConcurrent</span><span class="p">(</span><span class="n">goroutines</span> <span class="ne">int</span><span class="p">,</span> <span class="n">numbers</span> <span class="p">[]</span><span class="ne">int</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">02</span>     <span class="n">totalNumbers</span> <span class="p">:</span><span class="o">=</span> <span class="n">len</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">03</span>     <span class="n">lastGoroutine</span> <span class="p">:</span><span class="o">=</span> <span class="n">goroutines</span> <span class="o">-</span> <span class="mi">1</span>
+</span></span><span class="line"><span class="cl"><span class="mi">04</span>     <span class="n">stride</span> <span class="p">:</span><span class="o">=</span> <span class="n">totalNumbers</span> <span class="o">/</span> <span class="n">goroutines</span>
+</span></span><span class="line"><span class="cl"><span class="mi">05</span>
+</span></span><span class="line"><span class="cl"><span class="mi">06</span>     <span class="k">var</span> <span class="n">wg</span> <span class="n">sync</span><span class="o">.</span><span class="n">WaitGroup</span>
+</span></span><span class="line"><span class="cl"><span class="mi">07</span>     <span class="n">wg</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">goroutines</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">08</span>
+</span></span><span class="line"><span class="cl"><span class="mi">09</span>     <span class="k">for</span> <span class="n">g</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">g</span> <span class="o">&lt;</span> <span class="n">goroutines</span><span class="p">;</span> <span class="n">g</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">10</span>         <span class="n">go</span> <span class="k">func</span><span class="p">(</span><span class="n">g</span> <span class="ne">int</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">11</span>             <span class="n">start</span> <span class="p">:</span><span class="o">=</span> <span class="n">g</span> <span class="o">*</span> <span class="n">stride</span>
+</span></span><span class="line"><span class="cl"><span class="mi">12</span>             <span class="n">end</span> <span class="p">:</span><span class="o">=</span> <span class="n">start</span> <span class="o">+</span> <span class="n">stride</span>
+</span></span><span class="line"><span class="cl"><span class="mi">13</span>             <span class="k">if</span> <span class="n">g</span> <span class="o">==</span> <span class="n">lastGoroutine</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">14</span>                 <span class="n">end</span> <span class="o">=</span> <span class="n">totalNumbers</span>
+</span></span><span class="line"><span class="cl"><span class="mi">15</span>             <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">16</span>
+</span></span><span class="line"><span class="cl"><span class="mi">17</span>             <span class="n">bubbleSort</span><span class="p">(</span><span class="n">numbers</span><span class="p">[</span><span class="n">start</span><span class="p">:</span><span class="n">end</span><span class="p">])</span>
+</span></span><span class="line"><span class="cl"><span class="mi">18</span>             <span class="n">wg</span><span class="o">.</span><span class="n">Done</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">19</span>         <span class="p">}(</span><span class="n">g</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">20</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">21</span>
+</span></span><span class="line"><span class="cl"><span class="mi">22</span>     <span class="n">wg</span><span class="o">.</span><span class="n">Wait</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">23</span>
+</span></span><span class="line"><span class="cl"><span class="mi">24</span>     <span class="o">//</span> <span class="n">Ugh</span><span class="p">,</span> <span class="n">we</span> <span class="n">have</span> <span class="n">to</span> <span class="n">sort</span> <span class="n">the</span> <span class="n">entire</span> <span class="n">list</span> <span class="n">again</span><span class="o">.</span>
+</span></span><span class="line"><span class="cl"><span class="mi">25</span>     <span class="n">bubbleSort</span><span class="p">(</span><span class="n">numbers</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">26</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><h4 id="listing-9">Listing 9</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span><span class="lnt">9
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">Before:
+</span></span><span class="line"><span class="cl">  25 51 15 57 87 10 10 85 90 32 98 53
+</span></span><span class="line"><span class="cl">  91 82 84 97 67 37 71 94 26  2 81 79
+</span></span><span class="line"><span class="cl">  66 70 93 86 19 81 52 75 85 10 87 49
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl">After:
+</span></span><span class="line"><span class="cl">  10 10 15 25 32 51 53 57 85 87 90 98
+</span></span><span class="line"><span class="cl">   2 26 37 67 71 79 81 82 84 91 94 97
+</span></span><span class="line"><span class="cl">  10 19 49 52 66 70 75 81 85 86 87 93
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>因为冒泡排序的本质是遍历整个数组，bubbleSort的第25行会否定所有使用并发带来的已排序好的部分。所以使用并发并不会对冒泡排序带来性能上的提升。</p>
+<h2 id="读取文件">读取文件</h2>
+<p>我们已经看过两种CPU密集型的工作负载了，那IO密集型的呢？这些Goroutines从等待状态切换的时候语义是一样的吗？请看下面的读取文件和文件搜索的IO密集型的工作负载。</p>
+<p>第一个版本是串行版本，方法名称叫find</p>
+<h4 id="listing-10">Listing 10</h4>
+<p><a href="https://play.golang.org/p/8gFe5F8zweN">https://play.golang.org/p/8gFe5F8zweN</a></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">42</span> <span class="k">func</span> <span class="n">find</span><span class="p">(</span><span class="n">topic</span> <span class="n">string</span><span class="p">,</span> <span class="n">docs</span> <span class="p">[]</span><span class="n">string</span><span class="p">)</span> <span class="ne">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">43</span>     <span class="k">var</span> <span class="n">found</span> <span class="ne">int</span>
+</span></span><span class="line"><span class="cl"><span class="mi">44</span>     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">doc</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">docs</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">45</span>         <span class="n">items</span><span class="p">,</span> <span class="n">err</span> <span class="p">:</span><span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">46</span>         <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">47</span>             <span class="k">continue</span>
+</span></span><span class="line"><span class="cl"><span class="mi">48</span>         <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">49</span>         <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">items</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">50</span>             <span class="k">if</span> <span class="n">strings</span><span class="o">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">Description</span><span class="p">,</span> <span class="n">topic</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">51</span>                 <span class="n">found</span><span class="o">++</span>
+</span></span><span class="line"><span class="cl"><span class="mi">52</span>             <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">53</span>         <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">54</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">55</span>     <span class="k">return</span> <span class="n">found</span>
+</span></span><span class="line"><span class="cl"><span class="mi">56</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>下面是被find调用的方法read的实现。</p>
+<h4 id="listing-11">Listing 11</h4>
+<p><a href="https://play.golang.org/p/8gFe5F8zweN">https://play.golang.org/p/8gFe5F8zweN</a></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt">1
+</span><span class="lnt">2
+</span><span class="lnt">3
+</span><span class="lnt">4
+</span><span class="lnt">5
+</span><span class="lnt">6
+</span><span class="lnt">7
+</span><span class="lnt">8
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">33</span> <span class="k">func</span> <span class="n">read</span><span class="p">(</span><span class="n">doc</span> <span class="n">string</span><span class="p">)</span> <span class="p">([]</span><span class="n">item</span><span class="p">,</span> <span class="n">error</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">34</span>     <span class="n">time</span><span class="o">.</span><span class="n">Sleep</span><span class="p">(</span><span class="n">time</span><span class="o">.</span><span class="n">Millisecond</span><span class="p">)</span> <span class="o">//</span> <span class="n">Simulate</span> <span class="n">blocking</span> <span class="n">disk</span> <span class="n">read</span><span class="o">.</span>
+</span></span><span class="line"><span class="cl"><span class="mi">35</span>     <span class="k">var</span> <span class="n">d</span> <span class="n">document</span>
+</span></span><span class="line"><span class="cl"><span class="mi">36</span>     <span class="k">if</span> <span class="n">err</span> <span class="p">:</span><span class="o">=</span> <span class="n">xml</span><span class="o">.</span><span class="n">Unmarshal</span><span class="p">([]</span><span class="n">byte</span><span class="p">(</span><span class="n">file</span><span class="p">),</span> <span class="o">&amp;</span><span class="n">d</span><span class="p">);</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">37</span>         <span class="k">return</span> <span class="n">nil</span><span class="p">,</span> <span class="n">err</span>
+</span></span><span class="line"><span class="cl"><span class="mi">38</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">39</span>     <span class="k">return</span> <span class="n">d</span><span class="o">.</span><span class="n">Channel</span><span class="o">.</span><span class="n">Items</span><span class="p">,</span> <span class="n">nil</span>
+</span></span><span class="line"><span class="cl"><span class="mi">40</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>列表11中的read方法调用了time.Sleep,这个方法模拟了从硬盘读文件的系统调用的延迟。延迟的一致性对准确测量并发版本和串行版本的性能是非常重要的。</p>
+<p>有了串行版本后，下面是并发版本。</p>
+<h4 id="listing-12">Listing 12</h4>
+<p><a href="https://play.golang.org/p/8gFe5F8zweN">https://play.golang.org/p/8gFe5F8zweN</a></p>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span><span class="lnt">13
+</span><span class="lnt">14
+</span><span class="lnt">15
+</span><span class="lnt">16
+</span><span class="lnt">17
+</span><span class="lnt">18
+</span><span class="lnt">19
+</span><span class="lnt">20
+</span><span class="lnt">21
+</span><span class="lnt">22
+</span><span class="lnt">23
+</span><span class="lnt">24
+</span><span class="lnt">25
+</span><span class="lnt">26
+</span><span class="lnt">27
+</span><span class="lnt">28
+</span><span class="lnt">29
+</span><span class="lnt">30
+</span><span class="lnt">31
+</span><span class="lnt">32
+</span><span class="lnt">33
+</span><span class="lnt">34
+</span><span class="lnt">35
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="mi">58</span> <span class="k">func</span> <span class="n">findConcurrent</span><span class="p">(</span><span class="n">goroutines</span> <span class="ne">int</span><span class="p">,</span> <span class="n">topic</span> <span class="n">string</span><span class="p">,</span> <span class="n">docs</span> <span class="p">[]</span><span class="n">string</span><span class="p">)</span> <span class="ne">int</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">59</span>     <span class="k">var</span> <span class="n">found</span> <span class="n">int64</span>
+</span></span><span class="line"><span class="cl"><span class="mi">60</span>
+</span></span><span class="line"><span class="cl"><span class="mi">61</span>     <span class="n">ch</span> <span class="p">:</span><span class="o">=</span> <span class="n">make</span><span class="p">(</span><span class="n">chan</span> <span class="n">string</span><span class="p">,</span> <span class="n">len</span><span class="p">(</span><span class="n">docs</span><span class="p">))</span>
+</span></span><span class="line"><span class="cl"><span class="mi">62</span>     <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">doc</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">docs</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">63</span>         <span class="n">ch</span> <span class="o">&lt;-</span> <span class="n">doc</span>
+</span></span><span class="line"><span class="cl"><span class="mi">64</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">65</span>     <span class="n">close</span><span class="p">(</span><span class="n">ch</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">66</span>
+</span></span><span class="line"><span class="cl"><span class="mi">67</span>     <span class="k">var</span> <span class="n">wg</span> <span class="n">sync</span><span class="o">.</span><span class="n">WaitGroup</span>
+</span></span><span class="line"><span class="cl"><span class="mi">68</span>     <span class="n">wg</span><span class="o">.</span><span class="n">Add</span><span class="p">(</span><span class="n">goroutines</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">69</span>
+</span></span><span class="line"><span class="cl"><span class="mi">70</span>     <span class="k">for</span> <span class="n">g</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">g</span> <span class="o">&lt;</span> <span class="n">goroutines</span><span class="p">;</span> <span class="n">g</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">71</span>         <span class="n">go</span> <span class="k">func</span><span class="p">()</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">72</span>             <span class="k">var</span> <span class="n">lFound</span> <span class="n">int64</span>
+</span></span><span class="line"><span class="cl"><span class="mi">73</span>             <span class="k">for</span> <span class="n">doc</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">ch</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">74</span>                 <span class="n">items</span><span class="p">,</span> <span class="n">err</span> <span class="p">:</span><span class="o">=</span> <span class="n">read</span><span class="p">(</span><span class="n">doc</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">75</span>                 <span class="k">if</span> <span class="n">err</span> <span class="o">!=</span> <span class="n">nil</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">76</span>                     <span class="k">continue</span>
+</span></span><span class="line"><span class="cl"><span class="mi">77</span>                 <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">78</span>                 <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">item</span> <span class="p">:</span><span class="o">=</span> <span class="nb">range</span> <span class="n">items</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">79</span>                     <span class="k">if</span> <span class="n">strings</span><span class="o">.</span><span class="n">Contains</span><span class="p">(</span><span class="n">item</span><span class="o">.</span><span class="n">Description</span><span class="p">,</span> <span class="n">topic</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl"><span class="mi">80</span>                         <span class="n">lFound</span><span class="o">++</span>
+</span></span><span class="line"><span class="cl"><span class="mi">81</span>                     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">82</span>                 <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">83</span>             <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">84</span>             <span class="n">atomic</span><span class="o">.</span><span class="n">AddInt64</span><span class="p">(</span><span class="o">&amp;</span><span class="n">found</span><span class="p">,</span> <span class="n">lFound</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">85</span>             <span class="n">wg</span><span class="o">.</span><span class="n">Done</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">86</span>         <span class="p">}()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">87</span>     <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="mi">88</span>
+</span></span><span class="line"><span class="cl"><span class="mi">89</span>     <span class="n">wg</span><span class="o">.</span><span class="n">Wait</span><span class="p">()</span>
+</span></span><span class="line"><span class="cl"><span class="mi">90</span>
+</span></span><span class="line"><span class="cl"><span class="mi">91</span>     <span class="k">return</span> <span class="ne">int</span><span class="p">(</span><span class="n">found</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl"><span class="mi">92</span> <span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>并发版本明显比串行版本更复杂，但这是值得的吗？回到这个问题最好的方式就是进行基准测试。对于这些基准测试，我使用了1000个文档，并关闭了垃圾回收。</p>
+<h4 id="listing-13">Listing 13</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-gdscript3" data-lang="gdscript3"><span class="line"><span class="cl"><span class="k">func</span> <span class="n">BenchmarkSequential</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span><span class="n">testing</span><span class="o">.</span><span class="n">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">b</span><span class="o">.</span><span class="n">N</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">find</span><span class="p">(</span><span class="s2">&#34;test&#34;</span><span class="p">,</span> <span class="n">docs</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span><span class="line"><span class="cl">
+</span></span><span class="line"><span class="cl"><span class="k">func</span> <span class="n">BenchmarkConcurrent</span><span class="p">(</span><span class="n">b</span> <span class="o">*</span><span class="n">testing</span><span class="o">.</span><span class="n">B</span><span class="p">)</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">    <span class="k">for</span> <span class="n">i</span> <span class="p">:</span><span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="n">i</span> <span class="o">&lt;</span> <span class="n">b</span><span class="o">.</span><span class="n">N</span><span class="p">;</span> <span class="n">i</span><span class="o">++</span> <span class="p">{</span>
+</span></span><span class="line"><span class="cl">        <span class="n">findConcurrent</span><span class="p">(</span><span class="n">runtime</span><span class="o">.</span><span class="n">NumCPU</span><span class="p">(),</span> <span class="s2">&#34;test&#34;</span><span class="p">,</span> <span class="n">docs</span><span class="p">)</span>
+</span></span><span class="line"><span class="cl">    <span class="p">}</span>
+</span></span><span class="line"><span class="cl"><span class="p">}</span>
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>列表13是基准测试方法。下面是只有一个操作系统/硬件线程对所有Goroutines可用时的结果。串行的版本只使用了一个Goroutines，而并发的版本使用了runtime.NumCPU个，在我的机器上也就是8个Goroutines.这种情况下，并发的版本并没有利用并行来提高并发。</p>
+<h4 id="listing-14">Listing 14</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">10 Thousand Documents using 8 goroutines with 1 core
+</span></span><span class="line"><span class="cl">2.9 GHz Intel 4 Core i7
+</span></span><span class="line"><span class="cl">Concurrency WITHOUT Parallelism
+</span></span><span class="line"><span class="cl">-----------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">$ GOGC=off go test -cpu 1 -run none -bench . -benchtime 3s
+</span></span><span class="line"><span class="cl">goos: darwin
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: github.com/ardanlabs/gotraining/topics/go/testing/benchmarks/io-bound
+</span></span><span class="line"><span class="cl">BenchmarkSequential      	       3	1483458120 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkConcurrent      	      20	 188941855 ns/op : ~87% Faster
+</span></span><span class="line"><span class="cl">BenchmarkSequentialAgain 	       2	1502682536 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkConcurrentAgain 	      20	 184037843 ns/op : ~88% Faster
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>列表14中的基准测试结果表明：在只有一个操作系统/硬件线程的情况下，并发版本比串行版本快大约87%～88%。这正是我所期望的，因为所有Goroutines高效地共享同一个操作系统/硬件线程。当每个Goroutines调用read方法时，很自然的发生上下文切换，以使单个操作系统/硬件线程能够完成更多的工作。</p>
+<p>下面是使用并行进行并发的基准测试结果。</p>
+<h4 id="listing-15">Listing 15</h4>
+<div class="highlight"><div class="chroma">
+<table class="lntable"><tr><td class="lntd">
+<pre tabindex="0" class="chroma"><code><span class="lnt"> 1
+</span><span class="lnt"> 2
+</span><span class="lnt"> 3
+</span><span class="lnt"> 4
+</span><span class="lnt"> 5
+</span><span class="lnt"> 6
+</span><span class="lnt"> 7
+</span><span class="lnt"> 8
+</span><span class="lnt"> 9
+</span><span class="lnt">10
+</span><span class="lnt">11
+</span><span class="lnt">12
+</span></code></pre></td>
+<td class="lntd">
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">10 Thousand Documents using 8 goroutines with 1 core
+</span></span><span class="line"><span class="cl">2.9 GHz Intel 4 Core i7
+</span></span><span class="line"><span class="cl">Concurrency WITH Parallelism
+</span></span><span class="line"><span class="cl">-----------------------------------------------------------------------------
+</span></span><span class="line"><span class="cl">$ GOGC=off go test -run none -bench . -benchtime 3s
+</span></span><span class="line"><span class="cl">goos: darwin
+</span></span><span class="line"><span class="cl">goarch: amd64
+</span></span><span class="line"><span class="cl">pkg: github.com/ardanlabs/gotraining/topics/go/testing/benchmarks/io-bound
+</span></span><span class="line"><span class="cl">BenchmarkSequential-8        	       3	1490947198 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkConcurrent-8        	      20	 187382200 ns/op : ~88% Faster
+</span></span><span class="line"><span class="cl">BenchmarkSequentialAgain-8   	       3	1416126029 ns/op
+</span></span><span class="line"><span class="cl">BenchmarkConcurrentAgain-8   	      20	 185965460 ns/op : ~87% Faster
+</span></span></code></pre></td></tr></table>
+</div>
+</div><p>列表15中的基准测试结果表明额外的操作系统/硬件线程并没有带来更好的性能表现。</p>
+<h2 id="总结">总结</h2>
+<p>这篇文章的目的当你考虑一个工作负载是否需要并发时，提供语义上的指导。我尝试提供不同算法类型和工作负载的例子，来向你展示语义上的不同和你需要做的不同的工程决策。</p>
+<p>你能清楚的看到，IO密集型的工作负载，并行并不会带来明显的性能提升。CPU密集型则相反，例如冒泡排序，使用并发不会提高性能，只会增加复杂度。确定你的工作负载是否适合并发，然后确定你的工作负载使用正确的语义是很重要的。</p>
+
+    </div>
+
+    <div class="post-copyright">
+  <p class="copyright-item">
+    <span class="item-title">Author</span>
+    <span class="item-content"></span>
+  </p>
+  <p class="copyright-item">
+    <span class="item-title">LastMod</span>
+    <span class="item-content">
+        2021-05-12
+        <a href="https://github.com/realSinged/realSinged.github.io.git/commit/8dc0fabd627a9c86f29c1a805d3f211d64644b0e" title="add: scheduling-in-go-part-3">(8dc0fab)</a>
+    </span>
+  </p>
+  
+  
+</div>
+<footer class="post-footer">
+      
+      <nav class="post-nav">
+        <a class="prev" href="/post/cheatsheet/">
+            <i class="iconfont icon-left"></i>
+            <span class="prev-text nav-default">小抄</span>
+            <span class="prev-text nav-mobile">Prev</span>
+          </a>
+        <a class="next" href="/post/spark-structured-streaming-window-udf-example/">
+            <span class="next-text nav-default">使用Spark Structured Streaming的Window和UDF进行数据处理</span>
+            <span class="next-text nav-mobile">Next</span>
+            <i class="iconfont icon-right"></i>
+          </a>
+      </nav>
+    </footer>
+  </article>
+        </div>
+        
+
+  
+
+  
+
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="social-links">
+      <a href="zhaoxj58@gmail.com" class="iconfont icon-email" title="email"></a>
+      <a href="https://github.com/realSinged" class="iconfont icon-github" title="github"></a>
+  
+</div>
+
+<div class="copyright">
+  <span class="power-by">
+    Powered by <a class="hexo-link" href="https://gohugo.io">Hugo</a>
+  </span>
+  <span class="division">|</span>
+  <span class="theme-info">
+    Theme - 
+    <a class="theme-link" href="https://github.com/olOwOlo/hugo-theme-even">Even</a>
+  </span>
+
+  
+
+  <span class="copyright-year">
+    &copy; 
+    2020 - 
+    2024<span class="heart"><i class="iconfont icon-heart"></i></span><span></span>
+  </span>
+</div>
+
+    </footer>
+
+    <div class="back-to-top" id="back-to-top">
+      <i class="iconfont icon-up"></i>
+    </div>
+  </div>
+  <script src="/lib/highlight/highlight.pack.js?v=20171001"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/slideout@1.0.1/dist/slideout.min.js" integrity="sha256-t+zJ/g8/KXIJMjSVQdnibt4dlaDxc9zXr/9oNPeWqdg=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.js" integrity="sha256-XVLffZaxoWfGUEbdzuLi7pwaUJv1cecsQJQqGLe7axY=" crossorigin="anonymous"></script>
+
+
+
+<script type="text/javascript" src="/js/main.min.4ae89da218555efa0e7093a20b92017d2e1202b66fff9fc2edf4cb8d44b44c6e.js"></script>
+
+
+
+
+
+
+
+
+</body>
+</html>

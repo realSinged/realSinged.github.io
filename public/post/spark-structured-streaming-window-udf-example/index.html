@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="en">
+<head><script src="/livereload.js?mindelay=10&amp;v=2&amp;port=1313&amp;path=livereload" data-no-instant defer></script>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+  <title>使用Spark Structured Streaming的Window和UDF进行数据处理 - Singed</title>
+  <meta name="renderer" content="webkit" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+<meta name="theme-color" content="#f8f5ec" />
+<meta name="msapplication-navbutton-color" content="#f8f5ec">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="#f8f5ec">
+
+
+<meta name="author" content="" /><meta name="description" content="最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group &#43; Window &#43; UDF的使用，抽了一个demo出来，作成此文。
+" /><meta name="keywords" content="singed, golang, backend" />
+
+
+
+
+
+
+<meta name="generator" content="Hugo 0.140.1 with theme even" />
+
+
+<link rel="canonical" href="http://localhost:1313/post/spark-structured-streaming-window-udf-example/" />
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+<link rel="manifest" href="/manifest.json">
+<link rel="mask-icon" href="/safari-pinned-tab.svg" color="#5bbad5">
+
+
+
+<link href="/sass/main.min.f92fd13721ddf72129410fd8250e73152cc6f2438082b6c0208dc24ee7c13fc4.css" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css" integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin="anonymous">
+
+
+<meta property="og:url" content="http://localhost:1313/post/spark-structured-streaming-window-udf-example/">
+  <meta property="og:site_name" content="Singed">
+  <meta property="og:title" content="使用Spark Structured Streaming的Window和UDF进行数据处理">
+  <meta property="og:description" content="最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group &#43; Window &#43; UDF的使用，抽了一个demo出来，作成此文。">
+  <meta property="og:locale" content="en">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="post">
+    <meta property="article:published_time" content="2021-04-11T18:03:48+08:00">
+    <meta property="article:modified_time" content="2021-04-11T20:00:46+08:00">
+
+  <meta itemprop="name" content="使用Spark Structured Streaming的Window和UDF进行数据处理">
+  <meta itemprop="description" content="最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group &#43; Window &#43; UDF的使用，抽了一个demo出来，作成此文。">
+  <meta itemprop="datePublished" content="2021-04-11T18:03:48+08:00">
+  <meta itemprop="dateModified" content="2021-04-11T20:00:46+08:00">
+  <meta itemprop="wordCount" content="1503">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="使用Spark Structured Streaming的Window和UDF进行数据处理">
+  <meta name="twitter:description" content="最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group &#43; Window &#43; UDF的使用，抽了一个demo出来，作成此文。">
+
+<!--[if lte IE 9]>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js"></script>
+<![endif]-->
+
+<!--[if lt IE 9]>
+  <script src="https://cdn.jsdelivr.net/npm/html5shiv@3.7.3/dist/html5shiv.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/respond.js@1.4.2/dest/respond.min.js"></script>
+<![endif]-->
+
+</head>
+<body>
+  <div id="mobile-navbar" class="mobile-navbar">
+  <div class="mobile-header-logo">
+    <a href="/" class="logo">singed</a>
+  </div>
+  <div class="mobile-navbar-icon">
+    <span></span>
+    <span></span>
+    <span></span>
+  </div>
+</div>
+<nav id="mobile-menu" class="mobile-menu slideout-menu">
+  <ul class="mobile-menu-list">
+    <a href="/">
+        <li class="mobile-menu-item">Home</li>
+      </a><a href="/post/">
+        <li class="mobile-menu-item">Archives</li>
+      </a><a href="/tags/">
+        <li class="mobile-menu-item">Tags</li>
+      </a><a href="/categories/">
+        <li class="mobile-menu-item">Categories</li>
+      </a>
+  </ul>
+
+  
+
+
+</nav>
+
+  <div class="container" id="mobile-panel">
+    <header id="header" class="header">
+        <div class="logo-wrapper">
+  <a href="/" class="logo">singed</a>
+</div>
+
+
+
+
+
+<nav class="site-navbar">
+  <ul id="menu" class="menu">
+    <li class="menu-item">
+        <a class="menu-item-link" href="/">Home</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/post/">Archives</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/tags/">Tags</a>
+      </li><li class="menu-item">
+        <a class="menu-item-link" href="/categories/">Categories</a>
+      </li>
+  </ul>
+</nav>
+
+    </header>
+
+    <main id="main" class="main">
+      <div class="content-wrapper">
+        <div id="content" class="content">
+          <article class="post">
+    
+    <header class="post-header">
+      <h1 class="post-title">使用Spark Structured Streaming的Window和UDF进行数据处理</h1>
+
+      <div class="post-meta">
+        <span class="post-time"> 2021-04-11 </span>
+        
+          <span class="more-meta"> 1503 words </span>
+          <span class="more-meta"> 3 mins read </span>
+        
+      </div>
+    </header>
+
+    <div class="post-toc" id="post-toc">
+  <h2 class="post-toc-title">Contents</h2>
+  <div class="post-toc-content always-active">
+    <nav id="TableOfContents">
+  <ul>
+    <li>
+      <ul>
+        <li><a href="#什么是spark-structured-streaming">什么是Spark Structured Streaming</a>
+          <ul>
+            <li><a href="#group-function">Group Function</a></li>
+            <li><a href="#window-function">Window Function</a></li>
+            <li><a href="#udf">UDF</a></li>
+          </ul>
+        </li>
+        <li><a href="#外部依赖">外部依赖</a>
+          <ul>
+            <li><a href="#spark">Spark</a></li>
+            <li><a href="#kafka">Kafka</a></li>
+          </ul>
+        </li>
+        <li><a href="#使用">使用</a></li>
+        <li><a href="#完整demo链接httpsgithubcomrealsingedspark-structured-streaming-window-udf-example"><a href="https://github.com/realSinged/spark-structured-streaming-window-udf-example">完整Demo链接</a></a></li>
+      </ul>
+    </li>
+  </ul>
+</nav>
+  </div>
+</div>
+    <div class="post-content">
+      <p>最近经历了一个流数据处理的项目，数据源是kafka，需要聚合并分组时间段内的数据，然后基于聚合好的数据集来做分析， 最后再将计算结果数据。经过一番调研，最终选择了spark sructured streaming。因为之前没接触过spark，调研也花了好一番功夫，google了好久，关于spark structured streaming的中Group、Window和UDF基本都是分开使用或讨论。将这三者结合起来的案例少之又少，我也是费了好一番功夫才弄出来（可能是鄙人太菜了，大雾）。 鉴于此，我把项目中的关于Group + Window + UDF的使用，抽了一个demo出来，作成此文。</p>
+<h2 id="什么是spark-structured-streaming">什么是Spark Structured Streaming</h2>
+<p>Structured是基于Spark SQL引擎构建的可伸缩、可容错的流处理引擎。你可以像对静态数据进行批处理计算一样，来进行流数据计算。当流数据持续到达时，Spark SQL引擎将负责递增地，连续地运行它并更新最终结果。您可以在Scala，Java，Python或R中使用Dataset/DataFrame API来表示流聚合，事件时间窗口，流的批处理等。计算是在同一优化的Spark SQL引擎上执行的。系统通过检查点和预写日志（WAL）来确保端到端的正好一次的容错保证。简而言之，Structured Streaming提供了快速，可扩展，容错，端到端的精确一次流处理，而用户无需关心流。</p>
+<p>以上内容摘抄自<a href="https://spark.apache.org/docs/3.1.1/index.html">Spark官网</a>,可自行跳转查看。</p>
+<h3 id="group-function">Group Function</h3>
+<p>基于用户指定的方式来聚合DataFrame，<a href="https://spark.apache.org/docs/3.1.1/sql-ref-syntax-qry-select-groupby.html#content">链接在这里</a>，本文主要使用了基于<a href="https://spark.apache.org/docs/3.1.1/structured-streaming-programming-guide.html#basic-operations---selection-projection-aggregation">窗口的聚合</a>。</p>
+<h3 id="window-function">Window Function</h3>
+<p>对于流数据，一种是滑动窗口（Sliding Window），一种是滚动窗口(Rolling Window)，就是基于时间对一段时间内聚合。官网比我说的明白，直接上<a href="http://spark.apache.org/docs/latest/structured-streaming-programming-guide.html#window-operations-on-event-time">链接</a>。本文示例中使用的是滑动窗口</p>
+<h3 id="udf">UDF</h3>
+<p>全称User-Defined Functions。简单来说，就是可以用户自定义方法来处理DataFrame，给Spark数据处理提供了极强的扩展性。直接上<a href="https://spark.apache.org/docs/3.1.1/sql-ref-functions.html#udfs-user-defined-functions">链接</a></p>
+<h2 id="外部依赖">外部依赖</h2>
+<h3 id="spark">Spark</h3>
+<p>从<a href="https://spark.apache.org/downloads.html">这里</a>下载spark，使用的版本是2.4.7，解压到任意位置。然后配置Spark Home的环境变量。 export SPARK_HOME=/the/path/to/spark 即可。</p>
+<h3 id="kafka">Kafka</h3>
+<p>上游输入数据源和下游输出数据源，本地测试可以直接用Docker拉起来即可，以下是docker-compose.yaml文件内容。</p>
+<pre><code>version: '3.7'
+services:
+  zookeeper:
+    image: wurstmeister/zookeeper
+    volumes:
+      - ./zookeeper-data:/data
+    ports:
+      - &quot;2181:2181&quot;
+  restart: always
+
+kafka:
+  image: wurstmeister/kafka
+  ports:
+    - &quot;9092:9092&quot;
+  environment:
+    KAFKA_BROKER_ID: 0
+    #may be you should always change this to you local ip
+    KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://127.0.0.1:9092
+    #KAFKA_CREATE_TOPICS: &quot;kafeidou:2:0&quot; #kafka启动后初始化一个有2个partition(分区)0个副本名叫kafeidou的topic
+    KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+    KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+  volumes:
+    - ./kafka-logs:/kafka
+  depends_on:
+    - zookeeper
+
+networks:
+  app-tier:
+    driver: bridge
+</code></pre>
+<h2 id="使用">使用</h2>
+<ol>
+<li>
+<p>订阅kafka数据源</p>
+<pre><code> sdf = (
+     spark.readStream.format(&quot;kafka&quot;)
+     .option(&quot;kafka.bootstrap.servers&quot;, kafka_address)
+     .option(&quot;subscribe&quot;, kafka_source_topics)
+     .option(&quot;kafka.reconnect.backoff.ms&quot;, 2000)
+     .option(&quot;kafka.reconnect.backoff.max.ms&quot;, 10000)
+     .option(&quot;failOnDataLoss&quot;, False)
+     .option(&quot;backpressure.enabled&quot;, True)
+     .load()
+ )
+</code></pre>
+</li>
+<li>
+<p>使用Spark UDF将kafka数据源数据转化成DataFrame</p>
+<pre><code> @F.udf(returnType=transferSchema)
+ def transferDF(data):
+ #Kafka中数据形式为 {&quot;timestamp&quot;: &quot;2006-01-02Z03:04:05&quot;, &quot;school&quot;: &quot;cambridge&quot;, &quot;major&quot;: &quot;computer science&quot;, &quot;name&quot;: &quot;hanmeimei&quot;, &quot;extra&quot;: &quot;&quot;}
+ obj = json.loads(data)
+ return (
+     datetime.strptime(obj[&quot;timestamp&quot;], &quot;%Y-%m-%dT%H:%M:%S.%f&quot;),
+     obj[&quot;school&quot;],
+     obj[&quot;major&quot;],
+     data,
+ )
+</code></pre>
+</li>
+<li>
+<p>基于Spark Structured Streaming的窗口来对数据进行分组，分组条件为school和major。 并且设置窗口水位。</p>
+<pre><code> # 水位设置，将滑动窗口中数据以camera_id和region_id分组
+ window_group = sdf.withWatermark(&quot;timestamp&quot;, WATERMARK_DELAY_THRESHOLD).groupBy(
+     F.window(F.col(&quot;timestamp&quot;), WINDOW_DURATION, WINDOW_SLIDE_DURATION),
+     F.col(&quot;school&quot;),
+     F.col(&quot;major&quot;),
+ )
+</code></pre>
+</li>
+<li>
+<p>将窗口数据转化为UDF可以处理的DataSet。</p>
+<pre><code> result_df_set = window_group.agg(
+     handle_grouped_data(
+         F.collect_list(&quot;data&quot;), F.collect_set(&quot;window&quot;)
+     ).alias(  # 使用窗口数据
+         &quot;value_set&quot;
+         )
+</code></pre>
+</li>
+<li>
+<p>使用UDF来处理聚合好的窗口分组数据，这里面即是用户自定义的数据处理算法及逻辑。</p>
+<pre><code> @F.udf(T.ArrayType(T.BinaryType()))
+ def handle_grouped_data(data_list, window) -&gt; T.ArrayType(T.BinaryType()):
+     if not window or len(window) != 1:
+         print(&quot;handle_grouped_data, should have only one window instance&quot;)
+         return None
+     if len(data_list) == 0:
+         return None
+     sample = data_list[0]
+     sample_dict = json.loads(sample)
+     print(
+         f&quot;date_list length:{len(data_list)},school: {sample_dict['school']}, major: {sample_dict['major']}, window start:{window[0].start}, window end:{window[0].end}&quot;
+     )
+</code></pre>
+</li>
+<li>
+<p>将处理完成后返回的数据集再拆成DataFrame</p>
+<pre><code> result_df_set = window_group.agg(
+ handle_grouped_data(
+     F.collect_list(&quot;data&quot;), F.collect_set(&quot;window&quot;)
+     ).alias(  # 使用窗口数据
+         &quot;value_set&quot;
+     )
+ ).withColumn(
+     &quot;value&quot;, F.explode(F.col(&quot;value_set&quot;))
+ )  # 拆分处理后的数据集
+</code></pre>
+</li>
+<li>
+<p>将处理结果输出到Kafka</p>
+<pre><code> query = (
+     sdf.writeStream.format(&quot;kafka&quot;)
+     .option(&quot;kafka.bootstrap.servers&quot;, kafka_address)
+     .option(&quot;topic&quot;, kafka_sink_topic)
+     .option(&quot;kafka.security.protocol&quot;, &quot;SASL_PLAINTEXT&quot;)
+     .option(&quot;kafka.sasl.mechanism&quot;, &quot;PLAIN&quot;)
+     .option(&quot;kafka.sasl.jaas.config&quot;, kafka_jaas_config)
+     .option(&quot;kafka.reconnect.backoff.ms&quot;, 2000)
+     .option(&quot;kafka.reconnect.backoff.max.ms&quot;, 10000)
+     .option(&quot;checkpointLocation&quot;, spark_check_point_dir)
+     .start()
+ )
+</code></pre>
+</li>
+</ol>
+<h2 id="完整demo链接httpsgithubcomrealsingedspark-structured-streaming-window-udf-example"><a href="https://github.com/realSinged/spark-structured-streaming-window-udf-example">完整Demo链接</a></h2>
+<p>可以使用Demo中的kafka-consumer造一些数据供example来使用。</p>
+
+    </div>
+
+    <div class="post-copyright">
+  <p class="copyright-item">
+    <span class="item-title">Author</span>
+    <span class="item-content"></span>
+  </p>
+  <p class="copyright-item">
+    <span class="item-title">LastMod</span>
+    <span class="item-content">
+        2021-04-11
+        <a href="https://github.com/realSinged/realSinged.github.io.git/commit/b39c5ca9cdfbb25cabdfd1b93d935d524c133314" title="readme">(b39c5ca)</a>
+    </span>
+  </p>
+  
+  
+</div>
+<footer class="post-footer">
+      
+      <nav class="post-nav">
+        <a class="prev" href="/post/scheduling-in-go-part-3/">
+            <i class="iconfont icon-left"></i>
+            <span class="prev-text nav-default">Go语言调度（三）：并发</span>
+            <span class="prev-text nav-mobile">Prev</span>
+          </a>
+        <a class="next" href="/post/scheduling-in-go-part-2/">
+            <span class="next-text nav-default">Go语言调度（二）：Go调度器</span>
+            <span class="next-text nav-mobile">Next</span>
+            <i class="iconfont icon-right"></i>
+          </a>
+      </nav>
+    </footer>
+  </article>
+        </div>
+        
+
+  
+
+  
+
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="social-links">
+      <a href="zhaoxj58@gmail.com" class="iconfont icon-email" title="email"></a>
+      <a href="https://github.com/realSinged" class="iconfont icon-github" title="github"></a>
+  
+</div>
+
+<div class="copyright">
+  <span class="power-by">
+    Powered by <a class="hexo-link" href="https://gohugo.io">Hugo</a>
+  </span>
+  <span class="division">|</span>
+  <span class="theme-info">
+    Theme - 
+    <a class="theme-link" href="https://github.com/olOwOlo/hugo-theme-even">Even</a>
+  </span>
+
+  
+
+  <span class="copyright-year">
+    &copy; 
+    2020 - 
+    2024<span class="heart"><i class="iconfont icon-heart"></i></span><span></span>
+  </span>
+</div>
+
+    </footer>
+
+    <div class="back-to-top" id="back-to-top">
+      <i class="iconfont icon-up"></i>
+    </div>
+  </div>
+  <script src="/lib/highlight/highlight.pack.js?v=20171001"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jquery@3.2.1/dist/jquery.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/slideout@1.0.1/dist/slideout.min.js" integrity="sha256-t+zJ/g8/KXIJMjSVQdnibt4dlaDxc9zXr/9oNPeWqdg=" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.js" integrity="sha256-XVLffZaxoWfGUEbdzuLi7pwaUJv1cecsQJQqGLe7axY=" crossorigin="anonymous"></script>
+
+
+
+<script type="text/javascript" src="/js/main.min.4ae89da218555efa0e7093a20b92017d2e1202b66fff9fc2edf4cb8d44b44c6e.js"></script>
+
+
+
+
+
+
+
+
+</body>
+</html>

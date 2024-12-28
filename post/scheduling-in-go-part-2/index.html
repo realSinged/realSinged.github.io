@@ -16,14 +16,17 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="#f8f5ec">
 
 
-<meta name="author" content="singed" /><meta name="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调" /><meta name="keywords" content="singed, golang, backend" />
+<meta name="author" content="" /><meta name="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调度器。
+索引：
+1）Go语言调度（一）：系统调度器
+" /><meta name="keywords" content="singed, golang, backend" />
 
 
 
 
 
 
-<meta name="generator" content="Hugo 0.87.0 with theme even" />
+<meta name="generator" content="Hugo 0.140.1 with theme even" />
 
 
 <link rel="canonical" href="https://realsinged.github.io/post/scheduling-in-go-part-2/" />
@@ -39,20 +42,30 @@
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fancyapps/fancybox@3.1.20/dist/jquery.fancybox.min.css" integrity="sha256-7TyXnr2YU040zfSP+rEcz29ggW4j56/ujTPwjMzyqFY=" crossorigin="anonymous">
 
 
-<meta property="og:title" content="Go语言调度（二）：Go调度器" />
-<meta property="og:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调" />
-<meta property="og:type" content="article" />
-<meta property="og:url" content="https://realsinged.github.io/post/scheduling-in-go-part-2/" /><meta property="article:section" content="post" />
-<meta property="article:published_time" content="2021-02-08T10:43:09+08:00" />
-<meta property="article:modified_time" content="2021-02-18T18:41:49+08:00" />
+<meta property="og:url" content="https://realsinged.github.io/post/scheduling-in-go-part-2/">
+  <meta property="og:site_name" content="Singed">
+  <meta property="og:title" content="Go语言调度（二）：Go调度器">
+  <meta property="og:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调度器。
+索引：
+1）Go语言调度（一）：系统调度器">
+  <meta property="og:locale" content="en">
+  <meta property="og:type" content="article">
+    <meta property="article:section" content="post">
+    <meta property="article:published_time" content="2021-02-08T10:43:09+08:00">
+    <meta property="article:modified_time" content="2021-02-18T18:41:49+08:00">
 
-<meta itemprop="name" content="Go语言调度（二）：Go调度器">
-<meta itemprop="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调"><meta itemprop="datePublished" content="2021-02-08T10:43:09+08:00" />
-<meta itemprop="dateModified" content="2021-02-18T18:41:49+08:00" />
-<meta itemprop="wordCount" content="6333">
-<meta itemprop="keywords" content="" /><meta name="twitter:card" content="summary"/>
-<meta name="twitter:title" content="Go语言调度（二）：Go调度器"/>
-<meta name="twitter:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调"/>
+  <meta itemprop="name" content="Go语言调度（二）：Go调度器">
+  <meta itemprop="description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调度器。
+索引：
+1）Go语言调度（一）：系统调度器">
+  <meta itemprop="datePublished" content="2021-02-08T10:43:09+08:00">
+  <meta itemprop="dateModified" content="2021-02-18T18:41:49+08:00">
+  <meta itemprop="wordCount" content="6333">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="Go语言调度（二）：Go调度器">
+  <meta name="twitter:description" content="序言 这是一个由三部分组成的系列文章，翻译而来，原文出处请戳。 将提供对Go语言调度器背后的机制和语义的理解。这是第二篇，这篇文章将着重于Go调度器。
+索引：
+1）Go语言调度（一）：系统调度器">
 
 <!--[if lte IE 9]>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/classlist/1.1.20170427/classList.min.js"></script>
@@ -298,15 +311,15 @@ func main() {
 </span><span class="lnt">8
 </span></code></pre></td>
 <td class="lntd">
-<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback">runtime.schedule() {
-    // only 1/61 of the time, check the global runnable queue for a G.
-    // if not found, check the local queue.
-    // if not found,
-    //     try to steal from other Ps.
-    //     if not, check the global runnable queue.
-    //     if not found, poll network.
-}
-</code></pre></td></tr></table>
+<pre tabindex="0" class="chroma"><code class="language-fallback" data-lang="fallback"><span class="line"><span class="cl">runtime.schedule() {
+</span></span><span class="line"><span class="cl">    // only 1/61 of the time, check the global runnable queue for a G.
+</span></span><span class="line"><span class="cl">    // if not found, check the local queue.
+</span></span><span class="line"><span class="cl">    // if not found,
+</span></span><span class="line"><span class="cl">    //     try to steal from other Ps.
+</span></span><span class="line"><span class="cl">    //     if not, check the global runnable queue.
+</span></span><span class="line"><span class="cl">    //     if not found, poll network.
+</span></span><span class="line"><span class="cl">}
+</span></span></code></pre></td></tr></table>
 </div>
 </div><p>所以基于表2的规则，P1需要检查P2的LRQ，然后偷走一半的G。</p>
 <h4 id="figure-11">Figure 11</h4>
@@ -354,7 +367,7 @@ func main() {
     <div class="post-copyright">
   <p class="copyright-item">
     <span class="item-title">Author</span>
-    <span class="item-content">singed</span>
+    <span class="item-content"></span>
   </p>
   <p class="copyright-item">
     <span class="item-title">LastMod</span>
@@ -396,7 +409,7 @@ func main() {
       <div class="social-links">
       <a href="zhaoxj58@gmail.com" class="iconfont icon-email" title="email"></a>
       <a href="https://github.com/realSinged" class="iconfont icon-github" title="github"></a>
-  <a href="https://realsinged.github.io/index.xml" type="application/rss+xml" class="iconfont icon-rss" title="rss"></a>
+  
 </div>
 
 <div class="copyright">
@@ -414,7 +427,7 @@ func main() {
   <span class="copyright-year">
     &copy; 
     2020 - 
-    2022<span class="heart"><i class="iconfont icon-heart"></i></span><span>singed</span>
+    2024<span class="heart"><i class="iconfont icon-heart"></i></span><span></span>
   </span>
 </div>
 
@@ -431,7 +444,7 @@ func main() {
 
 
 
-<script type="text/javascript" src="/js/main.min.c99b103c33d1539acf3025e1913697534542c4a5aa5af0ccc20475ed2863603b.js"></script>
+<script type="text/javascript" src="/js/main.min.4ae89da218555efa0e7093a20b92017d2e1202b66fff9fc2edf4cb8d44b44c6e.js"></script>
 
 
 
